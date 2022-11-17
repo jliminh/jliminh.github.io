@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenVR Scoreboard</title>
+
+
+    <script src="https://unpkg.com/vue@3.2.20/dist/vue.global.prod.js"
+        integrity="sha384-lxNKA8ytxVUPUUbd/unq0UJKQTCth0AEJMOvyFV0Y5EjScceSsAXF/aJjASsx82/"
+        crossorigin="anonymous"></script>
+
+    <!-- Vue Dev version -->
+    <!-- <script src="https://unpkg.com/vue@3.2.20/dist/vue.global.js" crossorigin="anonymous"></script> -->
+
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --block-bg: rgba(18, 18, 18, 0.85);
+            --score-vert-padding: 0.1rem;
+            --color1: #ff5454;
+        }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            line-height: 1;
+        }
+
+        .match {
+            padding: 1rem 2rem;
+            background: var(--block-bg);
+            color: white;
+            margin-bottom: 1rem;
+            width: fit-content;
+            border-radius: 8px;
+            margin-left: 1rem;
+        }
+
+        .player-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-grow: 1;
+        }
+
+        .player-row:first-child .player {
+            flex-direction: column-reverse;
+        }
+
+        .player {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            width: 12em;
+        }
+
+        .player h3 {
+            margin: 0.5rem 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 1.4rem;
+        }
+
+        .player__info, .bestOf {
+            font-size: 1rem;
+            text-align: center;
+            color: #aaa;
+        }
+
+        .score {
+            font-size: 2rem;
+            margin: 0.3rem 0;
+            padding: 1rem .9rem;
+            width: 3rem;
+            text-align: center;
+            font-weight: 100;
+            transition: all 0.2s ease-out;
+        }
+
+        .score--matches {
+            padding-left: 0;
+            padding-right: 1rem;
+            font-weight: bold;
+            color: #bdff1f;
+            position: relative;
+            margin-right: 1rem;
+        }
+
+        .score--matches:after {
+            content: ' ';
+            position: absolute;
+            right: 0;
+            top: -15%;
+            height: 130%;
+            width: 2px;
+            background: #767676;
+        }
+
+        .score:last-child {
+            padding-right: 0;
+        }
+
+        .score.running {
+            border-right: none;
+            color: var(--color1);
+            font-weight: bold;
+        }
+
+        .score.ended.win {
+            font-weight: bold;
+        }
+
+        .match.match--ended .score.win {
+            color: var(--color1);
+        }
+
+        .player-row:first-child .score {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            padding-bottom: var(--score-vert-padding);
+        }
+
+        .player-row:last-child .score {
+            border-top: none;
+            border-bottom: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            padding-top: var(--score-vert-padding);
+        }
+
+        #settings {
+            margin-bottom: 1rem;
+        }
+
+        input {
+            padding: 0.5rem;
+            border-radius: 5px;
+            margin-right: 1rem;
+        }
+
+        label+input {
+            margin-left: 0.5rem;
+        }
+
+        label,
+        input[type=checkbox] {
+            cursor: pointer;
+        }
+
+        #credits {
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-top: 5rem;
+            margin-right: 1rem;
+            float: right;
+        }
+
+        .bestOf {
+            text-transform: uppercase;
+            position: absolute;
+            left: 16.1em;
+            margin-top: -1.12rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="settings">
+            <label for="userID"><a href="https://www.elevenvr.net/search" target="_blank">User ID</a></label>
+            <input name="userID" id="userID" type="text" v-model="userID" />
+
+            <label for="rowsReversed">Flip players</label>
+            <input name="rowsReversed" id="rowsReversed" type="checkbox" v-model="rowsReversed" />
+
+            <select id="bestOf" v-model="bestOf">
+                <option value="" selected>--hide bestof--</option>
+                <option value="bo3">BO3</option>
+                <option value="bo5">BO5</option>
+                <option value="bo7">BO7</option>
+            </select>
+        </div>
+        <div id='matches'>
+            <div v-for="match in matches" :key="match.id" class="match"
+                :class="match.attributes.state == 1 ? 'match--ended' : 'match--running'">
+                <div class="players">
+                    <player-row v-for="teamName in (rowsReversed? teamsReversed: teams)" :match="match"
+                        :team-name="teamName" :matches-won="this[teamName + 'MatchesWon']" />
+                </div>
+                <span class="bestOf">{{bestOf}}</span>
+            </div>
+        </div>
+
+        <div id="credits">
+            Scoreboard created by <a href="https://twitter.com/XCSme" target="_blank">XCS</a> 🏓
+        </div>
+    </div>
+
+    <script>
+        const UPDATE_INTERVAL_MS = 3000;
+        const LAST_MATCHES_SHOWN_COUNT = 1;
+        const QUERY_PARAM_USERID = 'user';
+        const QUERY_PARAM_ROWS_REVERSED = 'rowsReversed';
+        const QUERY_PARAM_BESTOF = 'bestOf';
+
+        const TEAM_NAME_1 = 'home';
+        const TEAM_NAME_2 = 'away';
+
+        let updateHandle = 0;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const userID = urlParams.get(QUERY_PARAM_USERID);
+        const rowsReversed = urlParams.get(QUERY_PARAM_ROWS_REVERSED);
+        const bestOf = urlParams.get(QUERY_PARAM_BESTOF);
+        const homeWinsOffset = urlParams.get('home-offset') || 0;
+        const awayWinOffset = urlParams.get('away-offset') || 0;
+
+        const App = {
+            data() {
+                return {
+                    counter: 0,
+                    userID: userID || '60531',
+                    matches: [],
+                    homeMatchesWon: 0,
+                    awayMatchesWon: 0,
+                    rowsReversed: !!rowsReversed && rowsReversed !== '0' && rowsReversed !== 'false' ? true : false,
+                    teams: [TEAM_NAME_1, TEAM_NAME_2],
+                    bestOf: bestOf || '',
+                }
+            },
+            computed: {
+                teamsReversed() {
+                    return this.teams.slice().reverse();
+                }
+            },
+            watch: {
+                rowsReversed: function (val) {
+                    if (val) {
+                        urlParams.set(QUERY_PARAM_ROWS_REVERSED, 1);
+                    } else {
+                        urlParams.delete(QUERY_PARAM_ROWS_REVERSED);
+                    }
+                    this.updateUrlParams();
+                },
+
+                userID: function (val) {
+                    urlParams.set(QUERY_PARAM_USERID, val);
+                    this.updateUrlParams();
+                    this.updateMatches();
+                },
+
+                bestOf: function (val) {
+                    if (val) {
+                        urlParams.set(QUERY_PARAM_BESTOF, val);
+                    } else {
+                        urlParams.delete(QUERY_PARAM_BESTOF);
+                    }
+                    this.updateUrlParams();
+                }
+            },
+            methods: {
+                updateUrlParams() {
+                    history.pushState(null, null, "?" + urlParams.toString());
+                },
+                updateMatches() {
+                    clearTimeout(updateHandle);
+                    fetch(`https://elevenvr.club/api/v1/accounts/${this.userID}/matches?page%5Bnumber%5D=1&page%5Bsize%5D=100`)
+                        .then(res => res.json())
+                        .then(data => {
+
+                            // Count matches score for those opponents
+                            let otherIDPrevious = -1;
+                            this.homeMatchesWon = homeWinsOffset;
+                            this.awayMatchesWon = awayWinOffset;
+                            try {
+                                for (const match of data.data) {
+                                    const user1 = match.attributes['home-user-id'];
+                                    const user2 = match.attributes['away-user-id'];
+
+                                    const otherID = user1 == this.userID ? user2 : user1;
+                                    if (otherIDPrevious === -1) {
+                                        otherIDPrevious = otherID
+                                    }
+
+                                    if (otherIDPrevious !== otherID) break; // End counting if no more games between those two
+                                    if (match.attributes.state !== 1) continue; // Don't count matches that are not over
+
+                                    if (match.attributes.winner === 0) {
+                                        this.homeMatchesWon++;
+                                    } else {
+                                        this.awayMatchesWon++;
+                                    }
+                                }
+
+                            } catch (e) {
+
+                            }
+
+                            const newMatches = data.data.slice(0, LAST_MATCHES_SHOWN_COUNT);
+                            this.matches = newMatches.map((m) => {
+                                const scores = m.relationships.rounds.data.map((r) => {
+                                    return data.included.find((inclRound) => inclRound.id == r.id && inclRound.type === r.type).attributes;
+                                }).reverse();
+                                return {
+                                    ...m,
+                                    scores
+                                }
+                            })
+                        });
+
+                    updateHandle = setTimeout(() => this.updateMatches(), UPDATE_INTERVAL_MS);
+                },
+            },
+
+            mounted() {
+                this.updateMatches();
+            }
+        }
+
+        var app = Vue.createApp(App);
+
+        app.component('player', {
+            props: ['player'],
+            template: `
+                    <div class="player">
+                        <h3>
+                            {{ player.UserName }}
+                        </h3>
+                        <div class="player__info">
+                            <div>
+                                WR#{{ player.Rank }} {{ Math.round(player.ELO) }}ELO
+                            </div>
+                        </div>
+                    </div>
+                `
+        });
+
+        app.component('player-row', {
+            props: ['match', 'teamName', 'matchesWon'],
+            methods: {
+                isMatchOver(score) {
+                    return (score['home-score'] >= 11 || score['away-score'] >= 11) && Math.abs(score['home-score'] - score['away-score']) > 1;
+                },
+            },
+            computed: {
+                otherTeamName: function () {
+                    return this.teamName === TEAM_NAME_1 ? TEAM_NAME_2 : TEAM_NAME_1;
+                }
+            },
+            template: `
+                <div class="player-row">
+                    <player :player="match.attributes[teamName + '-team'][0]">
+                    </player>
+
+                    <div class="score score--matches">
+                        {{matchesWon}}
+                    </div>
+                    <div v-for="score in match.scores" class="score"
+                        :class="[isMatchOver(score) ? 'ended': 'running', score[teamName + '-score'] > score[otherTeamName + '-score'] ? 'win' :'lose']">
+                        {{score[teamName + '-score']}}
+                    </div>
+                </div>
+            `
+        });
+
+        app.mount('#app')
+    </script>
+</body>
+
+</html>
