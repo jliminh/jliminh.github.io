@@ -304,7 +304,7 @@
                             const newMatches = data.data.slice(0, LAST_MATCHES_SHOWN_COUNT);
                             this.matches = newMatches.map((m) => {
                                 const scores = m.rounds.map((r) => {
-                                    return data.data.slice(0, LAST_MATCHES_SHOWN_COUNT).rounds.find((inclRound)=> inclRound.id == r.id && inclRound.type ===r.type);
+                                    return m.rounds.find((inclRound)=> inclRound.id == r.id && inclRound.type ===r.type); //compare to self , a bit weird , just to see if it works or not..
                                 }).reverse();
                                 return {
                                     ...m,
