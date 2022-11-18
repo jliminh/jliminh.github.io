@@ -303,9 +303,7 @@
 
                             const newMatches = data.data.slice(0, LAST_MATCHES_SHOWN_COUNT);
                             this.matches = newMatches.map((m) => {
-                                const scores = m.rounds.map((r) => {
-                                    return r;
-                                }).reverse();
+                                const scores = m.attributes.rounds.reverse();
                                 return {
                                     ...m,
                                     scores
